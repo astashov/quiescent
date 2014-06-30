@@ -21,29 +21,37 @@
   provided function as the implementation for React's 'render' method
   on the component.
 
-  The given render function should take a single immutable value as
-  its first argument, and return a single ReactJS component.
+  The given render function should take a single immutable value as its first
+  argument, optional custom properties as a second argument, which will be
+  applied to React's createClass() and return a single ReactJS component.
   Additional arguments to the component constructor will be passed as
-  additional arguments to the render function whenever it is invoked,
-  but will *not* be included in any calculations regarding whether the
-  component should re-render."
-  [renderer]
-  (let [react-component
-        (.createClass js/React
-           #js {:shouldComponentUpdate
-                (fn [next-props _]
-                  (this-as this
-                           (not= (aget (.-props this) "value")
-                                 (aget next-props "value"))))
-                :render
-                (fn []
-                  (this-as this
-                           (binding [*component* this]
-                             (apply renderer
-                                    (aget (.-props this) "value")
-                                    (aget (.-props this) "statics")))))})]
-    (fn [value & static-args]
-      (react-component #js {:value value :statics static-args}))))
+  additional arguments to the render function whenever it is invoked, but will
+  *not* be included in any calculations regarding whether the component should
+  re-render."
+  ([renderer] (component renderer {}))
+  ([renderer props]
+    (let [react-component
+          (.createClass js/React
+             #js {:shouldComponentUpdate
+                  (fn [next-props _]
+                    (this-as this
+                             (not= (aget (.-props this) "value")
+                                   (aget next-props "value"))))
+                  :render
+                  (fn []
+                    (this-as this
+                             (binding [*component* this]
+                               (apply renderer
+                                      (aget (.-props this) "value")
+                                      (aget (.-props this) "statics")))))})]
+      (fn [value & static-args]
+        (let [params (merge {:value value :statics static-args} props)
+              js-params (reduce (fn [memo [k v]]
+                                  (aset memo (key->js k) v)
+                                  memo)
+                                (js-obj)
+                                params)]
+          (react-component js-params))))))
 
 (def WrapperComponent
   "Wrapper component used to mix-in lifecycle access"
